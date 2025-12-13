@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     const VERIFY_URL = process.env.NODE_ENV === 'production' ? 'https://esewa.com.np/epay/transrec' : 'https://uat.esewa.com.np/epay/transrec';
     const form = new URLSearchParams();
     form.append('pid', pid);
-    form.append('scd', process.env.ESEWA_MERCHANT_ID || 'YOUR_ESEWA_MERCHANT_ID');
+    form.append('scd', process.env.ESEWA_MERCHANT_ID || 'EPAYTEST');
 
     const vresp = await fetch(VERIFY_URL, { method:'POST', body: form });
     const vtext = await vresp.text();
