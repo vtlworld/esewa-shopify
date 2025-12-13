@@ -1,48 +1,41 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({error:'Method Not Allowed'});
+  if (req.method !== "POST")
+    return res.status(405).send("Method Not Allowed");
+
   try {
-    const body = req.body;
-    const SHOP = process.env.SHOPIFY_STORE_DOMAIN;
-    const TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
+    const { items, customer, shipping_address } = req.body;
 
-    if (!SHOP || !TOKEN) return res.status(500).json({error:'Missing SHOP or TOKEN env variables'});
-
-    const line_items = (body.items || []).map(i => ({
-      variant_id: i.variant_id, quantity: Number(i.quantity || 1)
-    }));
-
-    const draftPayload = {
-      draft_order: {
-        line_items,
-        note: body.note || '',
-        use_customer_default_address: false,
-        customer: {
-          email: (body.customer && body.customer.email) || '',
-          first_name: (body.customer && body.customer.first_name) || '',
-          last_name: (body.customer && body.customer.last_name) || ''
-        },
-        shipping_address: body.shipping_address || {},
-        applied_discount: null
+    const draftOrder = {
+      line_items: items,
+      customer,
+      shipping_address,
+      use_customer_default_address: false,
+      tags: ["esewa-payment"],
+      note: "Draft order for eSewa checkout",
+      shipping_line: {
+        title: "Standard Shipping",
+        price: "0.00"
       }
     };
 
-    const resp = await fetch(`https://${SHOP}/admin/api/2024-10/draft_orders.json`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'X-Shopify-Access-Token': TOKEN },
-      body: JSON.stringify(draftPayload)
-    });
+    const response = await fetch(
+      `https://${process.env.SHOPIFY_DOMAIN}/admin/api/2024-10/draft_orders.json`,
+      {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ draft_order: draftOrder }),
+      }
+    );
 
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return res.status(500).json({error:'Shopify create draft failed', detail: txt});
-    }
+    const data = await response.json();
+    return res.status(200).json({ draft: data.draft_order });
 
-    const data = await resp.json();
-    return res.json({ draft: data.draft_order });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({error:String(err)});
+    return res.status(500).json({ error: err.message });
   }
 }
